@@ -19,7 +19,7 @@ SCENARIO("pop", "[pop]"){
 	stack<int> st;
 	st.push(1);
 	st.push(2);
-	st.pop();
+	st.wait_and_pop();
 	REQUIRE(st.count() == 1 );
 }
 
