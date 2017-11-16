@@ -9,6 +9,7 @@
 #include <new>
 #include <thread>
 #include <memory>
+#include <condition_variable>
 
 template <typename T>
 
@@ -32,9 +33,13 @@ public:
 
 	void push(T const &);//strong;
 
-	std::shared_ptr<T> pop();//strong;
+	//std::shared_ptr<T> pop();//strong;
 	
 	//T top();//strong;
+	
+	auto try_pop()->std::shared_ptr<T>;
+	
+	auto wait_and_pop()->std::shared_ptr<T>;
 
 	void printall() const;//strong;
 
@@ -49,6 +54,8 @@ private:
 	size_t count_;
 	
 	mutable std::mutex mutex_;
+	
+	std::condition_variable CV;
 
 };
 
@@ -134,9 +141,10 @@ void stack<T>::push(T const & value)
 	}
 	array_[count_] = value;
 	++count_;
+	CV.notify_all();
 }
 
-template <typename T>
+/*template <typename T>
 auto stack<T>::pop() -> std::shared_ptr<T>
 {
 	std::lock_guard<std::mutex> lock(mutex_);
@@ -147,7 +155,7 @@ auto stack<T>::pop() -> std::shared_ptr<T>
 	auto top = std::make_shared<T>(array_[count_ - 1]);
 	--count_;
 	return top;
-}
+}*/
 
 /*template <typename T>
 T stack<T>::top()
@@ -160,6 +168,30 @@ T stack<T>::top()
 	return array_[count_ - 1];
 	mutex_.unlock();
 }*/
+
+template <typename T>
+auto stack<T>::try_pop() -> std::shared_ptr<T>
+{
+	std::lock_guard<std::mutex> lock(mutex_);
+	if (count_ == 0)
+		return nullptr;
+	
+	--count_;
+	return  std::make_shared<T>(array_[count_]);
+}
+
+
+template <typename T>
+auto stack<T>::wait_and_pop() -> std::shared_ptr<T>
+{
+	std::unique_lock<std::mutex> lock(mutex_);
+	while (!count_)
+	{
+		CV.wait(lock);
+	}
+	--count_;
+	return std::make_shared<T>(array_[count_]);
+}
 
 
 template <typename T>
